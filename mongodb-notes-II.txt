@@ -1,0 +1,383 @@
+
+mongoimport .\persons.json -d analytics -c persons --jsonArray
+
+
+Aggregation
+
+- Pipeline of steps taken on data returned 
+- aggregate returns cursor
+
+- db.persons.aggregate([{ $match: {gender:"female"}}])
+
+- db.persons.aggregate([
+  { $match: { gender: "female" } },
+  { $group: { _id: { state: "$location.state" }, totalPersons: { $sum: 1 } } },
+]);
+
+example output:
+[
+  { _id: { state: 'pyrénées-atlantiques' }, totalPersons: 3 },
+  { _id: { state: 'ontario' }, totalPersons: 12 },
+  { _id: { state: 'karabük' }, totalPersons: 1 },
+  { _id: { state: 'longford' }, totalPersons: 5 },
+ ...]
+
+
+- db.persons.aggregate([
+  { $match: { gender: "female" } },
+  { $group: { _id: { state: "$location.state" }, totalPersons: { $sum: 1 } } },
+  { $sort: { totalPersons: -1 } }
+]);
+
+example output: 
+
+[
+  { _id: { state: 'midtjylland' }, totalPersons: 33 },
+  { _id: { state: 'nordjylland' }, totalPersons: 27 },
+  { _id: { state: 'syddanmark' }, totalPersons: 24 },
+  { _id: { state: 'australian capital territory' }, totalPersons: 24 },
+  { _id: { state: 'new south wales' }, totalPersons: 24 },
+  { _id: { state: 'south australia' }, totalPersons: 22 }
+]
+
+
+- db.persons.aggregate([
+    { $match: { 'dob.age': { $gt: 50 } } },
+    {
+      $group: {
+        _id: { gender: '$gender' },
+        numPersons: { $sum: 1 },
+        avgAge: { $avg: '$dob.age' }
+      }
+    },
+    { $sort: { numPersons: -1 } }
+  ]).pretty();
+
+output:
+
+[
+  {
+    _id: { gender: 'female' },
+    numPersons: 1125,
+    avgAge: 61.90577777777778
+  },
+  {
+    _id: { gender: 'male' },
+    numPersons: 1079,
+    avgAge: 62.066728452270624
+  }
+]
+
+we can add new fields in $project ($project transform single document)
+
+$project vs $group
+- $project will convert 1 to 1 document [Sum, Count, Average, Build Array]
+- $group will convert n documents to 1 [Include/Exclude Field, Transform, within a single document]
+- $unwind will split 1 document to multiple document
+
+
+
+db.persons.aggregate([
+  {
+    $project: {
+      _id: 0,
+      name: 1,
+      email: 1,
+      // birthdate: {$convert :{input:"$dob.date",to:"date"}},
+      // or use following shortcut ($toDate)
+      birthdate: { $toDate:'$dob.date' },
+      age: "$dob.age",
+      location: {
+        type: "Point",
+        coordinates: [
+          {
+            $convert: {
+              input: "$location.coordinates.longitude",
+              to: "double",
+              onError: 0.0,
+              onNull: 0.0,
+            },
+          },
+          {
+            $convert: {
+              input: "$location.coordinates.latitude",
+              to: "double",
+              onError: 0.0,
+              onNull: 0.0,
+            },
+          },
+        ],
+      },
+    },
+  },
+  {
+    $project: {
+      gender: 1,
+      email: 1,
+      location: 1,
+      birthdate: 1,
+      age: 1,
+      fullName: {
+        $concat: [
+          {
+            $toUpper: { $substrCP: ["$name.first", 0, 1] },
+          },
+          {
+            $substrCP: [
+              "$name.first",
+              1,
+              { $subtract: [{ $strLenCP: "$name.first" }, 1] },
+            ],
+          },
+          " ",
+          {
+            $toUpper: { $substrCP: ["$name.last", 0, 1] },
+          },
+          {
+            $substrCP: [
+              "$name.last",
+              1,
+              { $subtract: [{ $strLenCP: "$name.last" }, 1] },
+            ],
+          },
+        ],
+      },
+    },
+  },
+  {
+    $group: { _id: { birthdate: { $isoWeekYear:"$birthdate" } },numPersons:{ $sum: 1 } }},
+    {
+      $sort: { numPersons: -1 }
+    }
+]);
+
+
+
+friends collection sample
+
+{
+  _id: ObjectId('69b2db4dd63240da757c2907'),
+  name: 'Max',
+  hobbies: [ 'Sports', 'Cooking' ],
+  age: 29,
+  examScores: [
+    { difficulty: 4, score: 57.9 },
+    { difficulty: 6, score: 62.1 },
+    { difficulty: 3, score: 88.5 }
+  ]
+}
+
+
+
+
+db.friends.aggregate([
+  {$group: {_id: {age:"$age"},allHobbies:{$push: "$hobbies" }}}
+])
+
+
+vs
+
+// preventing nest hobbies array with below query
+
+db.friends.aggregate([
+  {$unwind: "$hobbies"},
+  {$group: {_id: {age:"$age"},allHobbies:{$push: "$hobbies" }}}
+])
+
+vs
+// following further removes reduntant entries in grouped hobbies array field
+db.friends.aggregate([
+  {$unwind: "$hobbies"},
+  {$group: {_id: {age:"$age"},allHobbies:{$addToSet: "$hobbies" }}}
+])
+
+
+
+
+// projection with arrays
+- db.friends.aggregate([
+  { $project: {_id:0, examScore: {$slice:[0,1]} } } // slice will slice the array, start at 0th index and slice upto 1th index,(ie. first element) // {$slice:-2} (will give last  elements)
+])
+
+
+// size of array:
+- db.friends.aggregate([
+   { $project: {_id:0, numScores: {$size: "$examScores"} } }
+])
+
+// $filter - allows filter arrays in documents inside projection phase
+// "sc" is variable just used to refer, $$sc means variable inside query and not $sc which means field inside document
+// https://docs.mongodb.com/manual/reference/operator/aggregation/cond/
+- db.friends.aggregate([
+  { $project: {_id:0, scores: { $filter: { input:"$examScores", as: "sc", cond: { $gt: ["$$sc.score",60] } } }  } }
+])
+
+
+// Multiple operations to Array
+- db.friends.aggregate([
+  {$unwind:"$examScores"},
+  {$project: {_id:0,name:1,age:1,score:"$examScores.score"}},
+  { $sort: {score:-1}}
+])
+db.friends.aggregate([
+  {$unwind:"$examScores"},
+  {$project: {_id:1,name:1,age:1,score:"$examScores.score"}},
+  { $sort: {score:-1}},
+  { $group: {_id:"$_id", name: { $first: "$name"} , maxScore: { $max: "$score" }}},
+  {$sort: { maxScore:-1 }}
+])
+//$first is first encountered 
+
+
+
+
+
+
+$bucket
+-db.persons.aggregate([
+  {
+    $bucket: {
+      groupBy: "$dob.age",
+      boundaries: [0, 18, 30, 40 , 50, 60, 120],
+      output: {
+        numPersons: { $sum:1 },
+        averageAge: { $avg: "$dob.age" },
+        // names: { $push:"$name.first" }
+      },
+    },
+  },
+]);
+
+// get the idea of distribution, distributing data in the given boundary
+// automode bucket (mongodb decides how to distribute data)
+- db.persons.aggregate([
+  {
+    $bucketAuto: {
+      groupBy: "$dob.age",
+      buckets: 5,
+      output: {
+        numPersons: { $sum:1 },
+        averageAge: { $avg: "$dob.age" }
+      },
+    },
+  },
+]);
+
+
+// top 10 oldest people
+- db.persons.aggregate([
+  {$project:{_id:0,name:1,birthdate: { $toDate:"$dob.date" }}},
+  { $sort: { birthdate: 1 } }
+  {$limit: 10}
+])
+
+
+// order of skip, limit, sort does matter below but not in find method
+- db.persons.aggregate([
+  {$project:{_id:0,name: {$concat:["$name.first"," ","$name.last"]},birthdate: { $toDate:"$dob.date" }}},
+  { $sort: { birthdate: 1 } },
+   { $skip:10 },
+  {$limit: 10}
+])
+
+// top 10 oldest male, note: order do matters here
+- db.persons.aggregate([
+  {$match:{gender:"male"}},
+  {$project:{_id:0,gender:1,name: {$concat:["$name.first"," ","$name.last"]},birthdate: { $toDate:"$dob.date" }}},
+  { $sort: { birthdate: 1 } },
+   { $skip:10 },
+  {$limit: 10}
+])
+
+
+
+
+
+
+
+Writing Pipeline results into a new collection //$out stage will help you write pipeline results into a new collection, there you can continue working on it
+
+- db.persons.aggregate([
+    {
+      $project: {
+        _id: 0,
+        name: 1,
+        email: 1,
+        birthdate: { $toDate: '$dob.date' },
+        age: "$dob.age",
+        location: {
+          type: 'Point',
+          coordinates: [
+            {
+              $convert: {
+                input: '$location.coordinates.longitude',
+                to: 'double',
+                onError: 0.0,
+                onNull: 0.0
+              }
+            },
+            {
+              $convert: {
+                input: '$location.coordinates.latitude',
+                to: 'double',
+                onError: 0.0,
+                onNull: 0.0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      $project: {
+        gender: 1,
+        email: 1,
+        location: 1,
+        birthdate: 1,
+        age: 1,
+        fullName: {
+          $concat: [
+            { $toUpper: { $substrCP: ['$name.first', 0, 1] } },
+            {
+              $substrCP: [
+                '$name.first',
+                1,
+                { $subtract: [{ $strLenCP: '$name.first' }, 1] }
+              ]
+            },
+            ' ',
+            { $toUpper: { $substrCP: ['$name.last', 0, 1] } },
+            {
+              $substrCP: [
+                '$name.last',
+                1,
+                { $subtract: [{ $strLenCP: '$name.last' }, 1] }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    { $out: "transformedPersons" }
+  ]).pretty();
+
+
+
+-  db.transformedPersons.createIndex({location: "2dsphere"})
+
+// if you want to use $geoNear, it has to be first element  in the pipeline
+
+-   db.transformedPersons.aggregate([
+    {
+      $geoNear: {
+        near: {
+          type:"Point",
+          coordinates:[-18.4,-42.8]
+        },
+        maxDistance: 1000000, //meters
+        // num: 10,
+        query: { age:  {$gt: 30} },
+        distanceField: "distance"
+      }
+    }
+  ])

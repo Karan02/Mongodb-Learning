@@ -1,0 +1,1077 @@
+- Database -> collections -> documents
+
+- JSON (BSON- Binary JSON) Data format -> mongodb stores data in form BSON format
+
+- mongosh
+
+Flow
+
+Frontend -> Backend - Drivers -> Mongodb server -> Storage Engine -> data (memory)/(file) access
+
+
+
+
+Course
+Introduction - Basic / CRUD -> Data Schema / Relations -> Working with the shell ->
+Using Compass -> CRUD Deep Dive -> Indexes -> Geospatial data -> Aggregation Framework -> Numeric Data 
+-> Security and authentication -> Performance/Fault Tolerance Deployment -> Transactions -> From shell to Drivers
+-> MongoDB Stitch
+
+insertOne, insertMany, update, updateMany, deleteOne, deleteMany, findOne, find, replaceOne
+
+$ - reserved operator
+$set, $gt, $lt
+
+cursor object
+
+db.collection.find().forEach(()=>{}) (find method gives cursor)
+
+
+projection 
+- db.passengers.find({},{ name:1,_id:0 })
+name will be included in results, _id will be excluded
+
+document size -> 16 mb max, Additionally, you may only have 100 levels of embedded documents.
+
+
+
+- db.flightData.find({"status.description":"on-time"})
+
+
+practice assignment
+db.patients.insertMany([
+{
+ "firstName": "John",
+ "lastName": "Smith",
+ "age": 35,
+ "history": [
+ { "disease": "cold", "treatment": "Antihistamines and rest" },
+ { "disease": "flu", "treatment": "Oseltamivir" }
+ ]
+ },
+ {
+ "firstName": "Emma",
+ "lastName": "Johnson",
+ "age": 28,
+ "history": [
+ { "disease": "asthma", "treatment": "Inhaler therapy" }
+ ]
+ },
+ {
+ "firstName": "Michael",
+ "lastName": "Brown",
+ "age": 42,
+ "history": [
+ { "disease": "diabetes", "treatment": "Insulin therapy" },
+ { "disease": "cold", "treatment": "Cough syrup and rest" }
+ ]
+ }
+ ])
+
+- filters, operators and projections
+
+- use databaseName
+- db.dropDatabase()
+- db.myCollection.drop()
+
+
+Data Types - Text, Boolean, Number, Integer(32 bit), NumberLong(int64), NumberDecimal, ObjectId, ISODate, Timestamp, embedded document, arrays
+
+- db.stats()
+
+- typeof db.numbers.findOne()
+
+
+
+aggregate lookup examples:
+- db.books.aggregate([{$lookup:{from:"authors",localField:"authors",foreignField:"_id",as:"creators"}}])
+
+Schema Validation
+- validationLevel, validationAction
+- strict                - error
+- moderate              - warn
+
+
+create validation settings
+
+db.createCollection('posts', {
+  validator: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['title', 'text', 'creator', 'comments'],
+      properties: {
+        title: {
+          bsonType: 'string',
+          description: 'must be a string and is required'
+        },
+        text: {
+          bsonType: 'string',
+          description: 'must be a string and is required'
+        },
+        creator: {
+          bsonType: 'objectId',
+          description: 'must be an objectid and is required'
+        },
+        comments: {
+          bsonType: 'array',
+          description: 'must be an array and is required',
+          items: {
+            bsonType: 'object',
+            required: ['text', 'author'],
+            properties: {
+              text: {
+                bsonType: 'string',
+                description: 'must be a string and is required'
+              },
+              author: {
+                bsonType: 'objectId',
+                description: 'must be an objectid and is required'
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+});
+
+
+Change validation settings
+db.runCommand({
+  collMod: 'posts',
+  validator: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['title', 'text', 'creator', 'comments'],
+      properties: {
+        title: {
+          bsonType: 'string',
+          description: 'must be a string and is required'
+        },
+        text: {
+          bsonType: 'string',
+          description: 'must be a string and is required'
+        },
+        creator: {
+          bsonType: 'objectId',
+          description: 'must be an objectid and is required'
+        },
+        comments: {
+          bsonType: 'array',
+          description: 'must be an array and is required',
+          items: {
+            bsonType: 'object',
+            required: ['text', 'author'],
+            properties: {
+              text: {
+                bsonType: 'string',
+                description: 'must be a string and is required'
+              },
+              author: {
+                bsonType: 'objectId',
+                description: 'must be an objectid and is required'
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  validationAction: 'warn'
+});
+
+
+- validationAction true will write warning to logs
+
+
+Data modelling and structuring :
+
+- In which format will you fetch your data ? 
+- How often will you fetch and change your data ?
+- How much data will you save (and how big is it)?
+- How is your Data related ?
+- Will Duplicates hurt you (=> many Updates)?
+- Will you hit Data/Storage limits ?
+
+
+
+Number of Indexes per Collection
+-A single collection can have no more than 64 indexes.
+
+Number of Indexed Fields in a Compound Index
+- A compound index can have no more than 32 fields.
+
+
+start mongodb service from terminal
+- net start MongoDB
+- net stop MongoDB
+
+
+connect to your mongodb 
+- mongod --port 27012
+- mongod --dbpath /users/karan/development/mongodb --logpath /users/karan/development/mongodb.log
+- mongod --fork --logpath /users/mongo.log (fork must start wih log path, fork means run mongodb in background)
+- net stop MongoDB
+
+Once inside db terminal
+- show dbs
+- use admin
+- db.shutdownServer() (to shut down connection)
+
+
+mongo.cfg file: (reusable configurations for mongodb server)
+
+storage:
+  dbPath: "/your/path/to/the/db/folder"
+systemLog:
+  destination:  file
+  path: "/your/path/to/the/logs.log"
+
+
+
+- mongod -f  /path/mongod.cfg
+
+
+insertOne, insertMany, insert
+
+we can insert our own _id
+
+if you insertMany and if there is repeating id(or any error), operations will be cancelled next from that entry
+
+- db.hobbies.insertMany([{_id:"yoga",name:"Yoga"},{_id:"cooking",name:"Cooking"},{_id:"hiking",name:"Hiking"}],{ordered: false})
+
+setting ordered false, will continue inserting rest of the entries (unordered insert, by default insertMany is ordered insert)
+
+WriteConcern
+
+{w:1,j:undefined} -> (w is write to disk and server will acknowledge us(0 means do not acknowledge us), j is to write to journal(a special file accessed by storage engine))
+{w:1,j:true}
+{w:1,wtimeout:200,j:true}
+
+
+MongoDB CRUD operations are atomic on the document level including embedded documents. if failed rollbacks to original state
+
+Import data to a database (-d is database -c is collection name, --jsonArray is to tell mongodb that it is a json data -- drop means drop if any previous such schema/data exists)
+- mongoimport .\tv-shows.json -d movieData -c movies --jsonArray --drop
+
+
+- mongosh
+- use movieData
+- show collections
+- db.movies.find().pretty()
+
+
+
+
+Reading documents
+
+Query Selectors and Projection Operators
+
+- db.movies.find({name:"The Last Ship"}) // find documents with name with the last ship
+- db.movies.findOne({runtime: {$eq:60}}) = db.movies.findOne({runtime: 60}) // equal to 60
+- db.movies.findOne({runtime: {$ne:60}})  // not equal to 60
+- db.movies.findOne({runtime: {$lt:40}})
+
+$lt, $lte, $gt, $gte, $eq, $ne
+
+- db.movies.find({"rating.average":{$gt:7.0}}) // get  nested value greater than 7  
+- db.movies.find({genres: ["Drama"]}) // only items in array is "Drama"
+- db.movies.find({genres: "Drama"}) // Drama can be part of that array
+- db.movies.find({runtime:{$in:[30, 42]}}).pretty() // in - equal to 30 or 42
+- db.movies.find({runtime:{$nin:[30, 42]}}).pretty()  //not in - not equal to 30 Nor 42
+- db.movies.findOne({$or:[{"rating.average":{$lt: 5}},{"rating.average":{$gt: 9.3}}]}) // check rating greater than 9.3 or lower than 5
+- db.movies.findOne({$nor:[{"rating.average":{$lt: 5}},{"rating.average":{$gt: 9.3}}]}) // check rating is not less than 5 and not greater than 9.3
+- db.movies.find().count() // count all entries in a collection
+- db.movies.find({$and: [{"rating.average":{$gt:9}},{genres:"Drama"}]}).pretty() // rating is greater than 9 and genres is Drama
+= db.movies.find({"rating.average":{$gt:9},genres:"Drama"})
+
+- db.movies.find({genres: "Drama", genres: "Horror"}).pretty() //second json entry will replace first json entry, so this won't work, so if you want to use both genres, instead use following
+- db.movies.find({$and:[{genres:"Drama"},{genres:"Horror"}]}) // genres drama and horror
+- db.movies.find({runtime: {$not:{$eq: 60}}}).count() = db.movies.find({runtime: {$ne: 60}}).count()
+- db.users.find({age:{$exists:true}}) // check age field exists
+- db.users.find({age:{$exists:true,$gte: 30}}).pretty() //age exists and greater than 30
+- db.users.find({age:{$exists:true,$ne:null}}).pretty() // age exists and not equal to null
+- db.users.find({phone:{$type: "double"}}) // check type of phone = db.users.find({phone:{$type: "integer"}})
+- db.users.find({phone:{$type: ["double","string"]}}) // check number of phone is either double or string
+- db.movies.find({summary:{$regex: /musical/}}) // search for summary string containing musical word // not very efficient way to query
+- db.sales.find({$expr: {$gt: ["$volume","$target"]}}) // check volume field is greater than target field in the document
+- db.sales.find({$expr: {$gt: [{$cond: {if: {$gte: ["$volume",190]}, then: {$subtract: ["$volume",10]}, else: "$volume"}},"$target"]}}).pretty()
+
+
+in windows terminal run: 
+- mongoimport .\boxoffice.json -d boxOffice -c movieStarts --jsonArray --drop
+
+go in mongosh
+
+- db.moviestarts.find({rating:{$gt:9.2},runtime:{$lt:100}}) // search all movies that have rating higher than 9.2 and runtime lower than 100 minutes
+- db.moviestarts({$and:[{genre:"drama"},{genre:"action"}]}) // search for all movies that contains a genre of "Drama" or "Action" //
+- db.moviestarts.find({$expr: { $gt: ["$visitors","expectedVisitors"] }}).pretty() // all movies where visitors exceeded expected visitors
+
+
+
+
+- db.users.find({"hobbies.title":"Sports"}) // works with hobbies array also
+
+  {
+    _id: ObjectId('69ae878d0f883c616e7c2909'),
+    name: 'Anna',
+    hobbies: [ { title: 'Sports', frequency: 2 }, { title: 'Yoga', frequency: 3 } ],
+    phone: '234234344234',
+    age: null
+  }
+
+- db.users.find({hobbies: {$size: 3}})
+[
+  {
+    _id: ObjectId('69aebdb20c50f039c97c2907'),
+    name: 'Chris',
+    hobbies: [ 'Sports', 'Cooking', 'Hiking' ]
+  }
+]
+
+- db.movieStarts.find({genre: ["action", "thriller"]})
+[
+  {
+    _id: ObjectId('69aeb6adc0a6171487200ccf'),
+    title: 'Teach me if you can',
+    meta: { rating: 8.5, aired: 2014, runtime: 90 },
+    visitors: 590378,
+    expectedVisitors: 500000,
+    genre: [ 'action', 'thriller' ]
+  }
+]
+
+- db.movieStarts.find({genre: {$all:["action","thriller"]}})
+[
+  {
+    _id: ObjectId('69aeb6adc0a6171487200ccf'),
+    title: 'Teach me if you can',
+    meta: { rating: 8.5, aired: 2014, runtime: 90 },
+    visitors: 590378,
+    expectedVisitors: 500000,
+    genre: [ 'action', 'thriller' ]
+  },
+  {
+    _id: ObjectId('69aeb6adc0a6171487200cd0'),
+    title: 'Supercharged Teaching',
+    meta: { rating: 9.3, aired: 2016, runtime: 60 },
+    visitors: 370000,
+    expectedVisitors: 1000000,
+    genre: [ 'thriller', 'action' ]
+  },
+  {
+    _id: ObjectId('69aeb6adc0a6171487200cd1'),
+    title: 'The Last Student Returns',
+    meta: { rating: 9.5, aired: 2018, runtime: 100 },
+    visitors: 1300000,
+    expectedVisitors: 1550000,
+    genre: [ 'thriller', 'drama', 'action' ]
+  }
+]
+
+- db.users.find({$and:[{"hobbies.title":"Sports"},{"hobbies.frequency":{$gte:2}}]})
+
+
+
+
+
+- db.users.find({$and:[{"hobbies.title":"Sports"},{"hobbies.frequency":{$gte:3}}]}) // false query results in  arrays with embedded documents
+[
+  {
+    _id: ObjectId('69ae86db0f883c616e7c2907'),
+    name: 'Max',
+    hobbies: [
+      { title: 'Sports', frequency: 3 },
+      { title: 'Cooking', frequency: 6 }
+    ],
+    phone: 7799345345
+  },
+  {
+    _id: ObjectId('69ae878d0f883c616e7c2909'),
+    name: 'Anna',
+    hobbies: [ { title: 'Sports', frequency: 2 }, { title: 'Yoga', frequency: 3 } ],
+    phone: '234234344234',
+    age: null
+  }
+]
+
+db.users.find({hobbies:{$elemMatch:{title:"Sports",frequency:{$gte:3}}}}) // $elemMatch is used for arrays of embedded documents
+[
+  {
+    _id: ObjectId('69ae86db0f883c616e7c2907'),
+    name: 'Max',
+    hobbies: [
+      { title: 'Sports', frequency: 3 },
+      { title: 'Cooking', frequency: 6 }
+    ],
+    phone: 7799345345
+  }
+]
+
+
+ db.exmovieStarts.find()
+[
+  {
+    _id: ObjectId('69aec0ae2647a22b9c92602f'),
+    title: 'Teach me if you can',
+    meta: { rating: 8, aired: 2014, runtime: 90 },
+    visitors: 590378,
+    expectedVisitors: 500000,
+    genre: [ 'action', 'thriller' ],
+    ratings: [ 8, 8 ]
+  },
+  {
+    _id: ObjectId('69aec0ae2647a22b9c926030'),
+    title: 'The Last Student Returns',
+    meta: { rating: 9.5, aired: 2018, runtime: 100 },
+    visitors: 1300000,
+    expectedVisitors: 1550000,
+    genre: [ 'thriller', 'drama', 'action' ],
+    ratings: [ 10, 9 ]
+  },
+  {
+    _id: ObjectId('69aec0ae2647a22b9c926031'),
+    title: 'Supercharged Teaching',
+    meta: { rating: 9.3, aired: 2016, runtime: 60 },
+    visitors: 370000,
+    expectedVisitors: 1000000,
+    genre: [ 'thriller', 'action' ],
+    ratings: [ 10, 9, 9 ]
+  }
+]
+
+- db.exmovieStarts.find({genre:{$size:2}}) // find all movies with exactly 2 genres
+- db.exmovieStarts.find({"meta.aired":2018}) // find all movies aired in 2018
+- db.exmovieStarts.find({ratings:{$elemMatch:{$gt:8,$lt:10}}}) //  movies with ratings greater than 8 but less than 10
+
+
+Cursors
+find() gives you cursor(pointer)()
+
+- db.movies.find().next()
+
+- const dataCursor = db.movies.find()
+- dataCursor.next()
+- dataCursor.forEach(doc => {printjson(doc)}) // will list all documents
+- dataCursor.hasNext()
+- db.movies.find().sort({"rating.average":1}) // sort cursor, 1 asc or -1 desc
+multiple sort
+- db.movies.find().sort({"rating.average":1,runtime:-1}) 
+// sort cursor is not for findOne as findOne gives only first element
+
+
+Limit and skip cursors, below order does not matter, mongo db underhood sort first, skip then and limit then.
+- db.movies.find().sort({"rating.average":1, runtime:-1}).skip(10).limit(10).pretty()
+
+- db.movies.find({},{name:1, genres:1,runtime:1,"schedule.time":1}) // only time field of schedule field
+
+- db.movies.find({},{name:1, genres:1,runtime:1,rating:1}).pretty() // only return fields we are interested in
+
+
+
+
+Finding Arrays:
+
+- db.movies.find({genres:"Drama"}) // returns documents like this  {...,genres: [ 'Drama', 'Horror', 'Thriller' ],...} // looks for all documents which has "Drama" in the array
+- db.movies.find({genres:["Drama"]}) // returns documents like this   {...,genres: [ 'Drama' ],...}
+
+
+- db.movies.find({genres:"Drama"},{"genres.$":1}) // second entry is projection  // "genres.$" - returns first match
+
+- db.movies.find({genres:{$all:["Drama","Horror"]}},{"genres.$":1}) // $all is document with both "Drama" and "Horror", returns matched genre and object id and no else fields from the document
+
+
+// Filtering your array or any document
+- db.movies.find({genres:"Drama"},{genres:{$elemMatch:{$eq:"Horror"}}}) // filtering then projecting first get all documents with "Drama" inside the genres array in the document
+// and then project documents containing "Horror"
+
+below is another example
+- db.movies.find({"rating.average":{$gt:9}},{genres:{$elemMatch:{$eq:"Horror"}}})
+
+basic syntax of $elemMatch operator
+
+db.collection.find({
+  <arrayField>: {
+    $elemMatch: {
+      <condition1>,
+      <condition2>,
+      ...
+    }
+  }
+})
+
+Example
+[
+  {
+    "_id": 1,
+    "item": "Laptop",
+    "reviews": [
+      { "rating": 5, "reviewer": "John" },
+      { "rating": 3, "reviewer": "Jane" }
+    ]
+  },
+  {
+    "_id": 2,
+    "item": "Mouse",
+    "reviews": [
+      { "rating": 5, "reviewer": "John" },
+      { "rating": 5, "reviewer": "Jane" }
+    ]
+  }
+]
+
+db.products.find({
+  reviews: {
+    $elemMatch: {
+      rating: 5,
+      reviewer: "Jane"
+    }
+  }
+})
+
+Using $elemMatch as a Projection Operator
+
+db.products.find(
+  { item: "Laptop", "reviews.reviewer": "John" },
+  { "reviews.$elemMatch": { reviewer: "John" } }
+)
+
+The $elemMatch operator can also be used in the projection part of a find() operation to return only the first matching element of the array field, rather than the entire array. 
+This query returns the "Laptop" document but limits the reviews array to contain only the first review where the reviewer is "John". 
+
+
+
+
+Slice operator
+
+- db.movies.find({"rating.average":{$gt:9}},{genres:{$slice: 2},name:1}) // this slice gives only 2 elements of genres field array
+- db.movies.find({"rating.average":{$gt:9}},{genres:{$slice: [1,2]},name:1}) // this slice skips 1st element of genres array, then gives 2 elements next
+
+
+Delete Operations
+
+- deleteOne
+- deleteMany
+
+eg
+- db.users.deleteOne({name:"Chris"})
+- db.users.deleteMany({totalAge:{$exists: false},isSporty:true})
+- db.users.deleteMany({}) // everything will delete in users collection
+
+- db.users.drop() // dropping collections
+- db.dropDatabase() // drop database
+
+
+
+Update Operation
+- updateOne, updateMany, $set
+
+
+- db.users.updateOne({_id:ObjectId('69af8a25ca69bf8db93b5de4')},{$set:{hobbies:[{title:"Sports",frequency:5},{title:"Cooking",frequency:3},{title:"Hiking",frequency:1}]}})
+- db.users.updateMany({"hobbies.title":"Sports"},{$set:{isSporty: true}})
+- db.users.updateOne({_id:ObjectId('69af8a25ca69bf8db93b5de4')},{$set:{age:40,phone:9123123132}})
+-  db.users.updateOne({name:"Manuel"},{$inc: {age:2}}) // increase age by 2
+- db.users.updateOne({name:"Manuel"},{$inc: {age:1},$set: {isSporty: false}})
+-  db.users.updateOne({name:"Manuel"},{$inc: {age:-1}}) // decrease age by 1
+
+- db.users.updateOne({name:"Manuel"},{$inc: {age:1},$set:{age:30}})
+MongoServerError: Updating the path 'age' would create a conflict at 'age'
+
+
+- db.users.updateOne({name:"Chris"},{$min:{age:38}}) // min only changes value if new value is less than existing value
+- db.users.updateOne({name:"Chris"},{$max:{age:38}}) // changes if new value is higher than existing value
+- db.users.updateOne({name:"Chris"},{$mul:{age:1.1}}) // multiply age by 1.1
+
+
+- db.users.updateMany({isSporty:true},{$set:{phone:null}}) // phone field will be set to null
+- db.users.updateMany({isSporty:true},{$unset:{phone: ""}}) // phone field will be completely removed
+- db.users.updateMany({},{$rename:{age: "totalAge"}}) // renaming field
+
+
+upsert() - update and insert
+-  db.users.updateOne({name:"Maria"},{$set:{age:29,hobbies:[{title:"Good food",frequency:3}],isSporty:true}},{upsert:true}) // if document is not there, it will be created
+
+  {
+    _id: ObjectId('69af90838d148c6ca6e83d83'),
+    name: 'Maria',
+    age: 29,
+    hobbies: [ { title: 'Good food', frequency: 3 } ],
+    isSporty: true
+  }
+
+
+db.sports.updateMany({},{$set:{title:"Football",requiresTeam:true}},{upsert:true})
+{
+  acknowledged: true,
+  insertedId: ObjectId('69af91e58d148c6ca6e83d84'),
+  matchedCount: 0,
+  modifiedCount: 0,
+  upsertedCount: 1
+}
+
+- db.sports.updateMany({requiresTeam:true},{$set:{minPlayers:11}})
+- db.sports.updateMany({requiresTeam:true},{$inc:{minPlayers:10}}) // minplayers will 21 (11+10)
+
+
+
+
+Update Operation with arrays // $elemMatch
+- db.users.find({$and:[{"hobbies.title":"Sports"},{"hobbies.frequency":{$gte:3}}]}) // this query will fail as we need both condition to satisfy in same json object(element) of an array
+correct query:
+- db.users.find({hobbies:{$elemMatch:{title:"Sports",frequency:{$gte:3}}}})
+
+
+//"hobbies.$" will refer to first matching elements match the query, not for multiple matching elements ($ sign matches first match)
+
+- db.users.updateMany({hobbies:{$elemMatch:{title:"Sports",frequency:{$gte:3}}}},{$set:{"hobbies.$.highFrequency":true}}) // updating matched array elements, we use $ as we don't want to update entire array, only matched elements of array
+
+[
+  {
+    _id: ObjectId('69af8a25ca69bf8db93b5de1'),
+    name: 'Anna',
+    hobbies: [ { title: 'Sports', frequency: 2 }, { title: 'Yoga', frequency: 3 } ],
+    isSporty: true,
+    totalAge: null
+  },
+  {
+    _id: ObjectId('69af8a25ca69bf8db93b5de4'),
+    name: 'Chris',
+    hobbies: [
+      { title: 'Sports', frequency: 5, highFrequency: true },
+      { title: 'Cooking', frequency: 3 },
+      { title: 'Hiking', frequency: 1 }
+    ],
+    isSporty: true,
+    totalAge: 41.800000000000004
+  }
+]
+
+- db.users.updateMany({"hobbies.frequency":{$gt: 2}},{$set:{"hobbies.$.goodFrequency":true}}) // $. only first element will be updated of an array
+
+- db.users.updateMany({totalAge:{$gt:30}},{$inc:{"hobbies.frequency":-1}})
+MongoServerError: Plan executor error during update :: caused by :: Cannot create field 'frequency' in element {hobbies: [ { title: "Cooking", frequency: 5, goodFrequency: true }, { title: "Cars", frequency: 2 } ]}
+
+because hobbies is array and not a document
+
+so use below instead
+- db.users.updateMany({totalAge:{$gt:30}},{$inc:{"hobbies.$[].frequency":-1}}) // hobbies.$[].frequency - updates all array elements and for each array element the frequency field (for embedded documents) // $[] syntax for updating all elements
+
+"hobbies.$"  gives first matching elements
+"hobbies.$[]" gives all elements
+
+
+
+
+
+
+- db.users.updateMany({"hobbies.frequency":{$gt:2}},{$set:{"hobbies.$[el].goodFrequency":true}},{arrayFilters:[{"el.frequency":{$gt: 2}}]}) 
+Filter 1: filter documents, 
+Filter 2: filter array elements
+
+
+Adding elements to array
+- db.users.updateOne({name:"Maria"},{$push: {hobbies: {title:"Sports",frequency:2}}})
+
+
+Add elements to array
+
+- db.users.updateOne({name:"Maria"},{$push: {hobbies: {$each:[{title:"Good Wine",frequency: 1},{title:"Hiking",frequency:2}], $sort:{frequency: -1}}}})
+
+above sort is used for order of insert of array elements (sort also sorts entire hobby array accross)
+
+db.users.find()
+[
+  {
+    _id: ObjectId('69af8a25ca69bf8db93b5de1'),
+    name: 'Anna',
+    hobbies: [
+      { title: 'Sports', frequency: 2 },
+      { title: 'Yoga', frequency: 3, goodFrequency: true }
+    ],
+    isSporty: true,
+    totalAge: null
+  },
+  {
+    _id: ObjectId('69af8a25ca69bf8db93b5de2'),
+    name: 'Manuel',
+    hobbies: [
+      { title: 'Cooking', frequency: 4, goodFrequency: true },
+      { title: 'Cars', frequency: 1 }
+    ],
+    phone: '012177972',
+    totalAge: 32
+  },
+  {
+    _id: ObjectId('69af8a25ca69bf8db93b5de3'),
+    name: 'Max',
+    hobbies: [
+      {
+        title: 'Sports',
+        frequency: 3,
+        highFrequency: true,
+        goodFrequency: true
+      },
+      { title: 'Cooking', frequency: 6, goodFrequency: true }
+    ],
+    isSporty: true
+  },
+  {
+    _id: ObjectId('69af8a25ca69bf8db93b5de4'),
+    name: 'Chris',
+    hobbies: [
+      {
+        title: 'Sports',
+        frequency: 4,
+        highFrequency: true,
+        goodFrequency: true
+      },
+      { title: 'Cooking', frequency: 2 },
+      { title: 'Hiking', frequency: 0 }
+    ],
+    isSporty: true,
+    totalAge: 41.800000000000004
+  },
+  {
+    _id: ObjectId('69af90838d148c6ca6e83d83'),
+    name: 'Maria',
+    age: 29,
+    hobbies: [
+      { title: 'Good food', frequency: 3, goodFrequency: true },
+      { title: 'Hiking', frequency: 2 },
+      { title: 'Good Wine', frequency: 1 }
+    ],
+    isSporty: true
+  }
+]
+
+
+
+
+
+remove elements from array
+
+- db.users.updateOne({name:"Maria"},{$pull: {hobbies: {title:"Hiking"}}}) // removes object arrays with title "Hiking"
+
+- db.users.updateOne({name:"Chris",{$pop:{hobbies: 1}}}) // removes last element of array
+
+- db.users.updateOne({name:"Chris",{$pop:{hobbies: -1}}}) // removes first element of array
+
+- db.users.updateOne({name:"Maria"},{$addToSet: {hobbies: {title:"Hiking",frequency: 2}}}) // addToSet adds unique value
+
+
+- Field update Operators: $set, $inc, $min etc
+- Work with arrays take advantage of $, $[] and $[<identifier>] + arrayFilters
+- Also use array update operators like $push or $pop to efficiently add/remove elements to or from arrays
+
+
+
+
+
+
+
+
+
+Indexes
+
+- don't use too many indexes (Sometimes index slowers query) 
+
+Indexes have sorted list of elements inside it
+
+- mongoimport .\persons.json -d contactData -c contacts --jsonArray --drop
+
+Plans
+- db.contacts.explain().find({"dob.age":{$gt:60}})
+
+-  db.contacts.explain("executionStats").find({"dob.age":{$gt:60}})
+
+
+
+- db.contacts.createIndex({"dob.age": 1}) // sort asc(1) / desc(-1) // indexes in both direction
+-  db.contacts.explain("executionStats").find({"dob.age":{$gt:60}})
+STAGE "IXSCAN" -> STAGE "FETCH" -> executionTimeMillis (check executionStats object)
+
+
+What does createIndex() do in detail?
+Whilst we can't really see the index, you can think of the index as a simple list of values + pointers to the original document.
+
+How to remove index
+- db.contacts.dropIndex({"dob.age":1})
+
+
+Compound Index
+- db.contacts.createIndex({"dob.age":1,gender:1}) // order does matter for eg: 30M, 30F, 31F, 32F
+
+Sometimes index can also be considered for sorting 
+
+get indexes on a collection
+- db.contacts.getIndexes()
+
+Index on _id default index
+
+Configure Index
+- db.contacts.createIndex({email:1},{unique:true}) // Unique constraint index
+
+
+Partial Filter
+- db.contacts.createIndex({"dob.age":1},{partialFilterExpression:{gender:"male"}}) // creating index on age but only  on documents having gender "male"
+
+-  db.contacts.createIndex({"dob.age":1},{partialFilterExpression:{"dob.age":{$gt:60}}}) // creating index on age on documents with age only greater than 60
+
+
+
+
+- db.users.insertMany([{name:"Max",email:"max@test.com"},{name:"Manu"}])
+- db.users.createIndex({email:1},{unique:true})
+- db.users.insertOne({name:"Anna"})
+MongoServerError: E11000 duplicate key error collection: contactData.users index: email_1 dup key: { email: null }
+2 null values of email, and email is unique, one should be aware of this mongodb behaviour
+
+
+- db.users.createIndex({email:1},{unique:true,partialFilterExpression:{email:{$exists: true}}}) // this will avoid clash with unique
+- db.users.insertOne({name:"Beethoven"})
+
+- db.users.insertOne({name:"Anna",email:"max@test.com"})
+MongoServerError: E11000 duplicate key error collection: contactData.users index: email_1 dup key: { email: "max@test.com" }
+
+
+
+TTL Index
+
+- db.sessions.createIndex({createdAt:1},{expireAfterSeconds: 10}) // deletes elements after 10 seconds, note: elements added before creation won't be affected, but if you add
+a document to collection it will reconsider existing documents, expireAfterSeconds does not works on compound indexes
+
+IXSCAN vs. COLLSCAN - index scan vs. collection scan
+
+
+Covered queries:
+- db.customers.explain("executionStats").find({name:"Max"},{_id:0,name:1}) // something like getting fields from index only(as index saves index key) and not reaching the document for it.
+
+
+- db.customers.createIndex({age:1,name:1}) // compound indexes works from left to right // here age can be used as stand alone index query but not name field as name is sorted inside age key. 
+
+- db.customers.explain().find({name:"Max",age:30}) // In query order will not matter, it will still use compound index
+
+
+Winning Plans
+- MongoDB caches plan for a query, so in future it utilizes that plan for this query 
+// 1000 threshold, index is rebuilt, other indexes are added or removed or mongodb server is restarted - cache will be removed
+
+
+
+- db.customers.explain("allPlansExecution").find({name:"Max",age:30})
+
+
+Multi-key indexes // [ array]
+
+
+
+
+Compound indexes with multikey indexes are possible (with one array and not multiple arrays) // can't index parallel arrays
+// also on query, one would not be able to query based on single value of array, there your query plan based on index will fail
+
+- db.contacts.createIndex({name:1, hobbies:1}) // works
+
+- db.contacts.createIndex({addresses:1, hobbies:1}) // won't work 
+error:
+caused by :: cannot index parallel arrays [hobbies] [addresses]\
+
+
+
+Text Indexes // can only have one text index
+
+db.products.find()
+[
+  {
+    _id: ObjectId('69b14ea32f3c4e2daf7c2915'),
+    title: 'A Book',
+    description: 'This is an awesome book about a young artist!'
+  },
+  {
+    _id: ObjectId('69b14ea32f3c4e2daf7c2916'),
+    title: 'Red T-Shirt',
+    description: "This T-Shirt is red and it's pretty awesome!"
+  }
+]
+
+- db.products.createIndex({description: "text"}) // underhood stores array of words
+
+- db.products.find({$text: {$search: "awesome"}})
+- db.products.find({$text: {$search: "book"}})
+- db.products.find({$text: {$search: "\"awesome book\""}})
+
+- db.products.find({$text: {$search: "awesome t-shirt"}}, {score: {$meta: "textScore"}})
+[
+  {
+    _id: ObjectId('69b14ea32f3c4e2daf7c2915'),
+    title: 'A Book',
+    description: 'This is an awesome book about a young artist!',
+    score: 0.625
+  },
+  {
+    _id: ObjectId('69b14ea32f3c4e2daf7c2916'),
+    title: 'Red T-Shirt',
+    description: "This T-Shirt is red and it's pretty awesome!",
+    score: 1.7999999999999998
+  }
+]
+
+db.products.find({$text: {$search: "awesome t-shirt"}}, {score: {$meta: "textScore"}}).sort({score:{$meta: "textScore"}})
+[
+  {
+    _id: ObjectId('69b14ea32f3c4e2daf7c2916'),
+    title: 'Red T-Shirt',
+    description: "This T-Shirt is red and it's pretty awesome!",
+    score: 1.7999999999999998
+  },
+  {
+    _id: ObjectId('69b14ea32f3c4e2daf7c2915'),
+    title: 'A Book',
+    description: 'This is an awesome book about a young artist!',
+    score: 0.625
+  }
+]
+
+In this way we can get more matched string first
+
+
+//Drop by index name
+- db.products.dropIndex("description_text")
+
+
+
+- db.products.createIndex({title:"text",description:"text"})
+- db.products.find({$text:{$search:"ship"}})
+
+- db.products.find()
+
+[
+  {
+    _id: ObjectId('69b14ea32f3c4e2daf7c2915'),
+    title: 'A Book',
+    description: 'This is an awesome book about a young artist!'
+  },
+  {
+    _id: ObjectId('69b14ea32f3c4e2daf7c2916'),
+    title: 'Red T-Shirt',
+    description: "This T-Shirt is red and it's pretty awesome!"
+  }
+]
+
+Exclude words in a search
+- db.products.find({$text:{$search:"awesome -T-Shirt"}}) // exclude words(T-Shirt) in a search
+[
+  {
+    _id: ObjectId('69b14ea32f3c4e2daf7c2915'),
+    title: 'A Book',
+    description: 'This is an awesome book about a young artist!'
+  }
+]
+
+Default Language: // check languages supported in mongodb docs
+-  db.products.createIndex({title:"text",description:"text"},{default_language: "english"})
+drop index and again create new one
+- db.products.createIndex({title:"text",description:"text"},{default_language: "english", weights:  {title:1,description:10}})  // more weight is given to description, so find query will more incline towards to description
+- db.products.find({$text:{$search:"red"}},{score: {$meta:"textScore"}}).pretty() // remove weights and recreate index, in both you will find score value different for a document 
+
+
+- db.products.find({$text: {$search:"",$language: "german",$caseSensitive: true}}) // specific language search, also check $caseSensitive
+
+Using text index is more important than just creating it
+
+
+
+Database is locked when index is creating and your new executing query will be on hold
+
+- db.rating.createIndex({age:1})  db.ratings.explain("executionStats").find({age: {$gt:80}})
+
+So
+- db.ratings.createIndex({age:1},{background: true}) // default background is false, so true means continue creating index in background, so you can continue executing your query
+
+
+
+
+
+
+Geospatial Data (GeoJSON Data)
+
+- db.places.insertOne({name:"California Academy of Sciences",location: {type:"Point",coordinates:[-122.468675,37.7698688]}}) // first value is longitude and second is latitude
+
+- db.places.find({location: {$near: {$geometry: {type:'Point',coordinates: [-122.4789056,37.7713751]}}}})
+Uncaught:
+MongoServerError[NoQueryExecutionPlans]: error processing query: ns=awesomeplaces.placesTree: GEONEAR  field=location maxdist=1.79769e+308 isNearSphere=0
+Sort: {}
+Proj: {}
+ planner returned error :: caused by :: unable to find index for $geoNear query
+
+Because we will need to add index first
+
+- db.places.createIndex({location: "2dsphere"})
+- db.places.find({location: {$near: {$geometry: {type:'Point',coordinates: [-122.4789056,37.7713751]}}}}) //$near sorts result by proximity
+
+nearby  distance
+- db.places.find({location: {$near: {$geometry: {type:'Point',coordinates: [-122.4789056,37.7713751]},$maxDistance: 2500,$minDistance: 10}}}) // little enhanced query, maxDistance/minDistance in meters
+
+
+
+// Finding places inside a certain area
+
+- const p1 = [-122.4547,33.77473]
+
+- const p2 = [-122.45303,33.76641]
+
+- const p3 = [-122.51026,37.76411]
+
+- const p4 = [-122.51088, 37.77131]
+
+- db.places.find({location: {$geoWithin: {$geometry: {type:"Polygon",coordinates:[[p1,p2,p3,p4,p1]]}}}}) 
+
+
+Findout if a user is inside a specific area
+ 
+- db.areas.insertOne({name:"Golden Gate Park", area: {type:"Polygon",coordinates:[[p1,p2,p3,p4,p1]]}})
+- db.areas.createIndex({area:"2dsphere"}) //"2dsphere" is index type for GeoJSON data
+- db.areas.find({area: {$geoIntersects: {$geometry:{type:"Point",coordinates:[-122.49089,3776992]}}}}) // point intersects polygon(area), (area can also intersects area)
+
+
+
+Find all places in certain radius
+- db.places.find({location: {$geoWithin: {$centerSphere: [[-122.46203,37.77286], 1 / 6378.1]}}}) // unsorted by proximity , 1 / 6378.1 is radius here
+
+
+Exercise
+
+Insert 3 places
+- db.places.insertOne({name:"Vadodara Central Jail",location:{type:"Point",coordinates:[73.1849667,22.3020299]}})
+- db.places.insertOne({ name: "Sursagar Lake", location: { type: "Point", coordinates: [ 73.2007877, 22.3011439] } })
+- db.places.insertOne({ name: "Warasiya Police Station", location: { type: "Point", coordinates: [ 73.2129023, 22.3104084] } })
+
+Pick a point and find points within nearest min and max distance
+- db.places.find({location:{$near:{$geometry:{type:"Point",coordinates:[73.2263947,22.3131604]},$maxDistance:2500,$minDistance:1000}}})
+
+
+Pick an area and see which points it contains
+- const pt1 = [73.1656142,22.3028177]
+
+- const pt2 = [73.1668604,22.2996497]
+
+- const pt3 = [73.1901105,22.2990494]
+
+- const pt4 = [73.1880558,22.3057528]
+
+- db.places.find({location:{$geoWithin:{$geometry:{type:"Polygon",coordinates:[[pt1,pt2,pt3,pt4,pt1]]}}}})
+
+
+Store atleast one area in a different collection
+- db.areas.insertOne({name:"Vadodara city sample area",area:{type:"Polygon",coordinates:[[pt1,pt2,pt3,pt4,pt1]]}})
+
+
+Pick a point and find out which areas in your collection contains that point
+- db.areas.find({area:{$geoIntersects:{$geometry:{type:"Point",coordinates:[73.1859138,22.3049796]}}}})
+
+
+
+
+
+
+
+
