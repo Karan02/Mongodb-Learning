@@ -1,0 +1,84 @@
+Influences Performance
+
+- Efficient queries
+- Indexes
+- Fitting Data Schema
+
+DB Admin/ System Admin
+
+- Hardware & Network
+- Sharding
+- Replica Sets
+
+
+Capped Collection are special type of collection where you limit your collection. (old data deleted when new data come) // used as cache or time series logs
+- default order is same is order of insertion
+
+- db.createCollection("capped",{capped: true, size:10000, max: 3}) // 10000 bytes size, max data stored is 3 documents
+
+to see reverse order 
+- db.capped.find().sort({$natural: -1})
+
+Removes old data, only 3 documents will be kept
+
+- db.capped.insertOne({name:"karan"})
+{
+  acknowledged: true,
+  insertedId: ObjectId('69b3f40ff5ded6b82b7c290b')
+}
+
+- db.capped.find()
+[
+  { _id: ObjectId('69b3f220f5ded6b82b7c2909'), name: 'Anna' },
+  { _id: ObjectId('69b3f3adf5ded6b82b7c290a'), name: 'Maria' },
+  { _id: ObjectId('69b3f40ff5ded6b82b7c290b'), name: 'karan' }
+
+]
+
+
+
+
+
+Replica Sets
+
+Client(Shell,Driver) -> write -> MongoDB Server -> write -> Primary Node
+
+Asynchronous Replication:
+
+Replica Set -> Secondary Node  ----- Secondary Node
+
+- Improve Read Performance - Backup / Fault Tolerancy
+
+So Read requests can go to secondary nodes
+- But write request will go to primary nodes
+
+Database administrator creates replica set and all
+
+
+
+
+
+
+Sharding - Horizontal Scaling
+- Data is distributed - not replicated across shards
+- queries are run across all shards(servers)
+
+How it works
+client -> mongos (Router) ->> Shard A(shard key) --- Shard B(shard key) --- Shard C(shared key)
+mongos broadcast to shards (if no shard key provided in your query)
+
+
+
+Mongo db atlas automates following:(Managed service, Database as a service)
+
+-manage shards
+-secure user/auth setup
+-protect web server / network
+-manage replica sets
+-encryption (transportation/rest)
+-regular backups
+-update software
+
+
+
+- A database cluster is a group of interconnected servers (nodes) working together as a single system to improve performance, data redundancy, and high availability

@@ -381,3 +381,148 @@ Writing Pipeline results into a new collection //$out stage will help you write 
       }
     }
   ])
+
+
+
+
+
+
+
+
+
+
+
+
+Numbers:
+Integer-int32(upto 2 billion) , Longs-int64(upto 9223 billion), Double-64bits, High Precision Doubles-128bit(34 decimal digits)
+
+- db.insertOne({age:NumberInt("29")}) //int32, default is int64 in javascript based mongo shell. Inserting larger number will lead to negative value
+- db.collection.stats()
+- db.insertOne({age:NumberLong("2147483648")})
+above always use quotation mark
+
+- db.collection.updateOne({},{$inc:{age:10}}) // this will again convert age to float64
+so use
+- db.collection.updateOne({},{$inc:{age:NumberInt(10)}})
+
+
+
+- db.collection.insertOne({valuation: NumberLong('123456789123456789')})
+- db.collection.updateOne({},{$inc:{valuation:1}})
+
+
+
+
+- db.collection.insertOne({a:0.3,b:0.1})
+- db.collection.aggregate([{$project:{result:{$subtract:["$a","$b"]}}}])
+result: 0.199999999999999998
+
+
+- db.collection.insertOne({a:NumberDecimal("0.3"), b:NumberDecimal("0.1")}) // do not forget quotation marks
+- db.collection.aggregate([{$project:{result:{$subtract:["$a","$b"]}}}])
+result: 0.2
+
+- db.collection.updateOne({},{$inc:{a:NumberDecimal("0.1")}}) // correct way to increment also
+
+also remember it eats space , so dont apply these formats everywhere, only where needed
+
+
+
+
+Security Checklist
+- Authentication & Authorization
+- Transport Encryption
+- Encryption at Rest
+- Auditing
+- Server & Network Config and Setup
+- Backups & Software Updates
+
+
+
+RBAC
+
+(
+- net stop MongoDB
+
+C:\Program Files\MongoDB\Server\<version>\bin\mongod.cfg
+
+Add:
+
+security:
+  authorization: enabled
+
+- net start MongoDB
+)
+
+
+- mongosh
+- use admin
+- db.createUser({user:"max",pwd:"admin",roles:["userAdminAnyDatabase"]})
+- db.auth("max","admin") 
+
+
+Built in Roles (Mongodb)
+- Database User: read, readWrite
+- Database Admin: dbAdmin, userAdmin, dbOwner
+- All Database Roles: readAnyDatabase, readWriteAnyDatabase, dbAdminAnyDatabase, userAdminAnyDatabase
+- Cluster Admin: clusterManager, clusterMonitor, hostManager, clusterAdmin
+- Backup/Restore: backup, restore
+- Superuser: dbOwner(admin), userAdmin(admin), userAdminAnyDatabase, root(most powerful)
+
+
+- mongosh -u max -p admin --authenticationDatabase admin
+
+- use shop
+- db.createUser({user:"appdev",pwd:"admin",roles:["readWrite"]})
+- db.auth('appdev',"admin")
+
+- exit
+
+- mongosh -u appdev -p admin --authenticationDatabase shop shop
+
+ (--authenticationDatabase = where user exists)
+last parameter = database you want to open
+
+
+- db.logout()
+- use admin
+- db.auth('max',"admin")
+- use shop
+- db.updateUser("appdev",{roles:["readWrite",{role:"readWrite",db:"blog"}]})
+- db.getUser('appdev')
+- db.auth('appdev','admin')
+- use blog
+- db.posts.insertOne({title:'This works!'})
+{
+  acknowledged: true,
+  insertedId: ObjectId('69b3a9c2df29d117117c2908')
+}
+
+
+
+
+
+
+
+Transport Encryption
+
+1️⃣ Create a CA certificate
+- openssl req -x509 -new -nodes -keyout ca.key -out ca.pem -days 365 (Common Name (e.g. server FQDN or YOUR name) []:localhost)
+
+2️⃣ Create server key
+- openssl genrsa -out server.key 4096
+
+3️⃣ Create certificate signing request
+- openssl req -new -key server.key -out server.csr (Common Name (e.g. server FQDN or YOUR name) []:localhost)
+
+4️⃣ Sign the certificate with the CA
+- openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out server.crt -days 365 -sha256
+
+5️⃣ Combine key + certificate
+- type server.key server.crt > mongodb.pem
+
+6️⃣ Start MongoDB with TLS
+- mongod --dbpath "C:\Program Files\MongoDB\Server\8.2\data" --tlsMode requireTLS --tlsCertificateKeyFile ".\mongodb.pem" --tlsCAFile ".\ca.pem"
+
+7️⃣ Connect with mongosh
+- mongosh --tls --tlsCAFile ca.pem -u root -p admin --authenticationDatabase admin --host localhost
