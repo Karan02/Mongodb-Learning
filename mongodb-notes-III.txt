@@ -82,3 +82,45 @@ Mongo db atlas automates following:(Managed service, Database as a service)
 
 
 - A database cluster is a group of interconnected servers (nodes) working together as a single system to improve performance, data redundancy, and high availability
+
+
+
+
+
+
+
+
+
+
+Transactions: (only need then use)
+
+Users deletes account
+Users Collection --related -->  Posts Collections
+Should be deleted together
+
+- use blog
+-  db.users.insertOne({name:"Max"})
+{
+  acknowledged: true,
+  insertedId: ObjectId('69b513e0fbcdae16ef7c2907')
+}
+
+- db.posts.insertMany([{title:"First Post",userId:ObjectId('69b513e0fbcdae16ef7c2907')},{title:"Second Post",userId:ObjectId('69b513e0fbcdae16ef7c2907')}])
+{
+  acknowledged: true,
+  insertedIds: {
+    '0': ObjectId('69b51475fbcdae16ef7c2908'),
+    '1': ObjectId('69b51475fbcdae16ef7c2909')
+  }
+}
+
+- const session = db.getMongo().startSession()
+
+- session.startTransaction()
+
+- const usersCol = session.getDatabase("blog").users
+- const postsCol = session.getDatabase("blog").posts
+
+- usersCol.deleteOne({_id:ObjectId('69b513e0fbcdae16ef7c2907')})
+- postsCol.deleteMany({userId: ObjectId('69b513e0fbcdae16ef7c2907')})
+- session.commitTransaction()
