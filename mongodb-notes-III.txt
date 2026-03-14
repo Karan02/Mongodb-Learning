@@ -124,3 +124,12 @@ Should be deleted together
 - usersCol.deleteOne({_id:ObjectId('69b513e0fbcdae16ef7c2907')})
 - postsCol.deleteMany({userId: ObjectId('69b513e0fbcdae16ef7c2907')})
 - session.commitTransaction()
+
+
+
+
+
+
+
+
+
